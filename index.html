@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mood Match App</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <style>
+    .scale-102 { transform: scale(1.02); }
+    .scale-105 { transform: scale(1.05); }
+    .rotate-1 { transform: rotate(1deg); }
+    .-rotate-1 { transform: rotate(-1deg); }
+    .rotate-3 { transform: rotate(3deg); }
+    .hover\:scale-102:hover { transform: scale(1.02); }
+    .hover\:scale-105:hover { transform: scale(1.05); }
+    .hover\:scale-110:hover { transform: scale(1.1); }
+    .hover\:-rotate-1:hover { transform: rotate(-1deg); }
+    .hover\:rotate-3:hover { transform: rotate(3deg); }
+    .animate-bounce { animation: bounce 1s infinite; }
+    .animate-spin { animation: spin 1s linear infinite; }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-pink-50 via-purple-50 to-blue-50">
+
+<!-- Header -->
+<header class="bg-gradient-to-r from-pink-400 to-purple-500 text-white py-6 px-4 shadow-md relative overflow-hidden">
+  <!-- Decorative Icons -->
+  <div class="absolute top-0 left-0 w-full h-full opacity-10">
+    <div class="absolute top-6 right-12 text-5xl animate-bounce" style="animation-duration: 2s;">🎵</div>
+    <div class="absolute bottom-8 left-16 text-4xl animate-bounce" style="animation-duration: 2.3s;">🎬</div>
+    <div class="absolute top-12 left-1/4 text-3xl animate-bounce" style="animation-duration: 1.7s;">❤️</div>
+    <div class="absolute bottom-4 right-1/3 text-3xl animate-bounce" style="animation-duration: 2.5s;">✨</div>
+  </div>
+  <!-- Content -->
+  <div class="container mx-auto relative z-10">
+    <div class="flex items-center">
+      <div class="mr-3 bg-white text-purple-500 rounded-full p-2 w-10 h-10 flex items-center justify-center shadow-lg">
+        <span class="text-xl">🎭</span>
+      </div>
+      <div>
+        <h1 class="text-3xl font-bold">Mood Match</h1>
+        <p class="opacity-90">ค้นพบความบันเทิงที่เข้ากับอารมณ์ของคุณวันนี้ ✨</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container mx-auto py-8 px-4">
+  <!-- Media Type Selection -->
+  <div class="mb-8 flex justify-center">
+    <div class="inline-flex bg-white rounded-full p-1 shadow-md">
+      <button 
+        id="movie-btn"
+        class="px-6 py-2 rounded-full font-medium transition-all duration-300 bg-gradient-to-r from-pink-400 to-purple-500 text-white"
+        onclick="handleMediaTypeChange('movie')"
+      >
+        🎬 หนัง
+      </button>
+      <button 
+        id="music-btn"
+        class="px-6 py-2 rounded-full font-medium transition-all duration-300 text-gray-700 hover:bg-pink-50"
+        onclick="handleMediaTypeChange('music')"
+      >
+        🎵 เพลง
+      </button>
+    </div>
+  </div>
+
+  <!-- Emotion Selection -->
+  <div class="mb-8">
+    <h2 class="text-2xl font-bold text-purple-700 mb-4">เลือกอารมณ์ของคุณวันนี้</h2>
+    <div id="emotions-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+  </div>
+
+  <!-- Recommendations -->
+  <div id="recommendations-section" class="mb-8 hidden">
+    <h2 id="recommendations-title" class="text-2xl font-bold text-purple-700 mb-4"></h2>
+    <div id="recommendations-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+  </div>
+</main>
+
+<!-- History Section -->
+<section id="history-section" class="container mx-auto py-8 px-4 hidden">
+  <h2 class="text-2xl font-bold text-purple-700 mb-4">ประวัติล่าสุดของคุณ</h2>
+  <div id="history-container" class="flex overflow-x-auto space-x-4 pb-4"></div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-gradient-to-r from-pink-400 to-purple-500 text-white py-6 mt-8">
+  <div class="container mx-auto text-center">
+    <p>© 2025 Mood Match. All rights reserved.</p>
+    <p class="text-sm opacity-80">Made with ❤️ by UDT</p>
+  </div>
+</footer>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 hidden">
+  <div class="bg-white p-8 rounded-xl shadow-xl flex flex-col items-center">
+    <div class="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+    <p class="text-purple-700 font-medium">กำลังโหลด...</p>
+  </div>
+</div>
+
+<script>
+class Emotion {
+  constructor(id, name, thai_name, icon, color, description, moodScore) {
+    this.id = id;
+    this.name = name;
+    this.thai_name = thai_name;
+    this.icon = icon;
+    this.color = color;
+    this.description = description;
+    this.moodScore = moodScore;
+  }
+  getContrastColor() {
+    const hex = this.color.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? '#000000' : '#FFFFFF';
+  }
+}
+
+class Media {
+  constructor(id, title, type, year, artist, imageUrl, previewUrl, genres, emotionIds) {
+    this.id = id;
+    this.title = title;
+    this.type = type;
+    this.year = year;
+    this.artist = artist;
+    this.imageUrl = imageUrl;
+    this.previewUrl = previewUrl;
+    this.genres = genres;
+    this.emotionIds = emotionIds;
+  }
+  getSummary() {
+    return this.type === 'movie' ? `${this.title} (${this.year}) - ${this.artist}` : `${this.title} - ${this.artist}`;
+  }
+}
+
+class Recommender {
+  constructor(mediaList) {
+    this.mediaList = mediaList;
+  }
+  getRecommendations(emotionId, mediaType, limit = 10) {
+    const filtered = this.mediaList.filter(media => 
+      media.emotionIds.includes(emotionId) && media.type === mediaType
+    );
+    const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, limit);
+  }
+}
+
+// App state
+const appState = {
+  emotions: [],
+  mediaList: [],
+  selectedEmotion: null,
+  selectedMediaType: 'movie',
+  recommendations: [],
+  isLoading: false,
+  history: [],
+  recommender: null
+};
+
+// Initial data
+const initEmotions = [
+  new Emotion(1, 'Happy', 'มีความสุข', '😄', '#FF9ED8', 'Feeling joyful and content', 0.8),
+  new Emotion(2, 'Sad', 'เศร้า', '😢', '#A6D1FF', 'Feeling down or melancholy', -0.6),
+  new Emotion(3, 'Excited', 'ตื่นเต้น', '🤩', '#FFB347', 'Feeling enthusiastic and energetic', 0.9),
+  new Emotion(4, 'Relaxed', 'ผ่อนคลาย', '😌', '#B0E57C', 'Feeling calm and peaceful', 0.5),
+  new Emotion(5, 'Romantic', 'โรแมนติก', '❤️', '#FF8FAB', 'Feeling loving and sentimental', 0.7),
+  new Emotion(6, 'Angry', 'โกรธ', '😠', '#FF7F7F', 'Feeling irritated or furious', -0.7),
+  new Emotion(7, 'Nostalgic', 'คิดถึงความหลัง', '🕰️', '#D8B5FF', 'Reminiscing about the past', 0.3),
+  new Emotion(8, 'Motivated', 'มีแรงบันดาลใจ', '💪', '#85D3FF', 'Feeling driven and determined', 0.8),
+];
+
+const initMediaList = [
+  // Movies
+  new Media(101, 'La La Land', 'movie', 2016, 'Damien Chazelle', 'https://image.tmdb.org/t/p/w500/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg', 'https://www.youtube.com/watch?v=0pdqf4P9MB8', ['Musical', 'Romance', 'Drama'], [1, 5, 7]),
+  new Media(102, 'The Shawshank Redemption', 'movie', 1994, 'Frank Darabont', 'https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg', 'https://www.youtube.com/watch?v=6hB3S9bIaco', ['Drama'], [8, 2]),
+  new Media(103, 'Inception', 'movie', 2010, 'Christopher Nolan', 'https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg', 'https://www.youtube.com/watch?v=YoHD9XEInc0', ['Action', 'Sci-Fi', 'Thriller'], [3, 8]),
+  new Media(104, 'The Pursuit of Happyness', 'movie', 2006, 'Gabriele Muccino', 'https://th.bing.com/th/id/OIP.cP6VFaVBV6KterpbGRFBWQHaKw?rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=DMOBlEcRuw8', ['Drama', 'Biography'], [2, 8]),
+  new Media(105, 'Spirited Away', 'movie', 2001, 'Hayao Miyazaki', 'https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg', 'https://www.youtube.com/watch?v=ByXuk9QqQkk', ['Animation', 'Fantasy'], [4, 7]),
+  new Media(106, 'Eternal Sunshine of the Spotless Mind', 'movie', 2004, 'Michel Gondry', 'https://image.tmdb.org/t/p/w500/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg', 'https://www.youtube.com/watch?v=07-QBnEkgXU', ['Romance', 'Sci-Fi', 'Drama'], [2, 5, 7]),
+  new Media(107, 'John Wick', 'movie', 2014, 'Chad Stahelski', 'https://th.bing.com/th/id/OIP.zn7R_oB3nuv94Kto-_J6sAHaHa?rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=2AUmvWm5ZDQ', ['Action', 'Thriller'], [6, 3]),
+  new Media(108, 'Inside Out', 'movie', 2015, 'Pete Docter', 'https://upload.wikimedia.org/wikipedia/en/0/0a/Inside_Out_%282015_film%29_poster.jpg', 'https://www.youtube.com/watch?v=seMwpP0yeu4', ['Animation', 'Family'], [1, 2, 7]),
+  new Media(109, 'The Notebook', 'movie', 2004, 'Nick Cassavetes', 'https://image.tmdb.org/t/p/w500/rNzQyW4f8B8cQeg7Dgj3n6eT5k9.jpg', 'https://www.youtube.com/watch?v=FC6biTjEyZw', ['Drama', 'Romance'], [5, 7]),
+  new Media(110, 'The Secret Life of Walter Mitty', 'movie', 2013, 'Ben Stiller', 'https://th.bing.com/th/id/OIP.mrqkfeSV-MWDYxGxh2YPUAHaK-?rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=HddkucqSzSM', ['Adventure', 'Comedy', 'Drama'], [8, 4]),
+  new Media(111, 'Titanic', 'movie', 1997, 'James Cameron', 'https://th.bing.com/th/id/OIP.Ddm7ith2lEELb7ZGtQkTTgHaKj?cb=iwc1&rs=1&pid=ImgDetMain ','https://www.youtube.com/watch?v=F2RnxZnubCM', ['Sci-Fi', 'Drama'], [2, 5]),
+  new Media(112, 'The Beekeeper', 'movie', 2024, 'David Ayer', 'https://th.bing.com/th/id/OIP.3CjMQwaX7dSN0P493s7M3wHaKl?cb=iwc1&rs=1&pid=ImgDetMain ','https://www.youtube.com/watch?v=SzINZZ6iqxY', ['Action','Sci-Fi', 'Drama'], [3, 6]),
+  new Media(113, 'Green Book', 'movie', 2018, '	Peter Farrelly', 'https://upload.wikimedia.org/wikipedia/en/5/5b/Green_Book_%282018_poster%29.png ','https://www.youtube.com/watch?v=QkZxoko_HC0', ['Drama'], [1]),
+  new Media(114, 'A Minecraft Movie', 'movie', 2025, 'Unknown', ' https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/ec29a52b-662f-4562-abce-71c5b7d046e8/djhx55b-fca26674-acad-44cf-a317-e7096e732b0d.jpg/v1/fill/w_691,h_1024,q_75,strp/a_minecraft_movie__early_review__by_kevthegreatest_djhx55b-fullview.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7ImhlaWdodCI6Ijw9MTAyNCIsInBhdGgiOiJcL2ZcL2VjMjlhNTJiLTY2MmYtNDU2Mi1hYmNlLTcxYzViN2QwNDZlOFwvZGpoeDU1Yi1mY2EyNjY3NC1hY2FkLTQ0Y2YtYTMxNy1lNzA5NmU3MzJiMGQuanBnIiwid2lkdGgiOiI8PTY5MSJ9XV0sImF1ZCI6WyJ1cm46c2VydmljZTppbWFnZS5vcGVyYXRpb25zIl19.RvwOkExddAqfUDZtH-OTCr6q7tkZeR4uaqIpbKiFCwg', 'https://www.youtube.com/watch?v=wJO_vIDZn-I', ['Animation', 'Adventure'], [1]),
+  new Media(115, 'Johnny English', 'movie', 2003, 'Peter Howitt', 'https://m.media-amazon.com/images/M/MV5BMjEzODY2MjU1Nl5BMl5BanBnXkFtZTcwMzc1ODUzNg@@._V1_FMjpg_UX1000_.jpg','https://www.youtube.com/watch?v=-Qv6p6pTz5I', ['Comedy', 'Action'], [1]),
+  new Media(116, 'The Meg', 'movie', 2018, 'Jon Turteltaub', 'https://image.tmdb.org/t/p/original/zPwD6pvMaGFMh4M3qNp1AvHEAIT.jpg', 'https://www.youtube.com/watch?v=NXDnjeUfOSY', ['Action', 'Horror', 'Sci-Fi'], [6]),
+  new Media(117, 'Sisu', 'movie', 2022, 'Jalmari Helander', 'https://th.bing.com/th/id/OIP.Pa7HB5ZGlD-OqzY3IgO9mgHaJP?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=2NnPzpuU5ao', ['Action', 'War'], [6]),
+  new Media(118, 'The Conjuring', 'movie', 2013, 'James Wan', 'https://image.tmdb.org/t/p/w500/wVYREutTvI2tmxr6ujrHT704wGF.jpg', 'https://www.youtube.com/watch?v=k10ETZ41q5o', ['Horror', 'Thriller'], [3]),
+  new Media(119, 'IT', 'movie', 2017, 'Andy Muschietti', 'https://image.tmdb.org/t/p/w500/9E2y5Q7WlCVNEhP5GiVTjhEhx1o.jpg', 'https://www.youtube.com/watch?v=xKJmEC5ieOk', ['Horror'], [3]),
+  new Media(120, 'Tee Yod 1', 'movie', 2024, 'Taweewat Wantha', 'https://th.bing.com/th/id/OIP.sBsyMRfrToWTwVHyJ5OqQwHaJQ?w=130&h=180&c=7&r=0&o=5&cb=iwc2&pid=1.7', 'https://youtu.be/4MFA-ZhsK0c?feature=shared', ['Horror', 'Thai'], [3]),
+  new Media(121, 'The Con-Heartist', 'movie', 2020, 'Mez Tharatorn', 'https://i.pinimg.com/originals/35/39/33/353933176477fc99642d866564f25e11.jpg', 'https://www.youtube.com/watch?v=WZbS2LJXveA', ['Comedy', 'Romance', 'Thai'], [4]),
+  new Media(122, 'Deadpool', 'movie', 2016, 'Tim Miller', 'https://image.tmdb.org/t/p/w500/fSRb7vyIP8rQpL0I47P3qUsEKX3.jpg', 'https://www.youtube.com/watch?v=ONHBaC-pfsk', ['Action', 'Comedy'], [4]),
+  new Media(123, 'Home Alone', 'movie', 1990, 'Chris Columbus', 'https://image.tmdb.org/t/p/w500/9wSbe4CwObACCQvaUVhWQyLR5Vz.jpg', 'https://www.youtube.com/watch?v=jEDaVHmw7r4', ['Comedy', 'Family'], [4]),
+  new Media(124, 'Lan Ma', 'movie', 2023, 'Unknown', 'https://th.bing.com/th/id/OIP.4SMu6T9YoZGHfLkSPEmtNgHaJQ?w=149&h=186&c=7&r=0&o=5&cb=iwc2&pid=1.7', 'https://www.youtube.com/watch?v=0fksoEJvdLE', ['Drama', 'Thai'], [2]),
+  new Media(125, 'Coco', 'movie', 2017, 'Lee Unkrich', 'https://image.tmdb.org/t/p/w500/gGEsBPAijhVUFoiNpgZXqRVWJt2.jpg', 'https://www.youtube.com/watch?v=Rvr68u6k5sI', ['Animation', 'Adventure', 'Family'], [8]),
+  new Media(126, 'Find Me Falling', 'movie', 2024, 'Stelios Kammitsis', 'https://static1.srcdn.com/wordpress/wp-content/uploads/2024/07/find-me-falling-2024-poster.jpg', 'https://www.youtube.com/watch?v=56DuFZX9cuE', ['Romance'], [5]),
+  new Media(127, 'Nobody', 'movie', 2021, 'Ilya Naishuller', 'https://th.bing.com/th/id/OIP.WpmvrmSOwApg83Fi0F6eDgHaJ4?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=wZti8QKBWPo', ['Action', 'Crime', 'Thriller'], [6]),
+
+  // Music
+  new Media(201, 'Happy', 'music', 2013, 'Pharrell Williams', 'https://th.bing.com/th/id/R.4b92ba35842743c528a7d28475f39d2f?rik=2Yf58RijYh84WA&pid=ImgRaw&r=0', 'https://www.youtube.com/watch?v=ZbZSe6N_BXs', ['Pop'], [1, 3]),
+  new Media(202, 'Someone Like You', 'music', 2011, 'Adele', 'https://th.bing.com/th/id/R.578dd7ace1c33c1f2bb6d1a74eb30b8a?rik=%2fe1D6MNKf865NA&pid=ImgRaw&r=0', 'https://www.youtube.com/watch?v=hLQl3WQQoQ0', ['Pop', 'Soul'], [2, 7]),
+  new Media(203, 'Don\'t Stop Me Now', 'music', 1978, 'Queen', 'https://th.bing.com/th/id/OIP.A1Z29fy5hIN8AOcSMDUsgAHaJb?w=134&h=180&c=7&r=0&o=5&pid=1.7', 'https://www.youtube.com/watch?v=HgzGwKwLmgM', ['Rock'], [3, 8]),
+  new Media(204, 'Weightless', 'music', 2012, 'Marconi Union', 'https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/f5/f4/53/f5f4530c-12b2-eb66-e978-62bc2a2b7b72/677603032723.png/1200x1200bf-60.jpg', 'https://www.youtube.com/watch?v=qYnA9wWFHLI', ['Ambient', 'Electronic'], [4]),
+  new Media(205, 'All of Me', 'music', 2013, 'John Legend', 'https://th.bing.com/th/id/OIP.jyRjZbSDiFi_2H5p2M49EgAAAA?rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=450p7goxZqg', ['R&B', 'Soul'], [5]),
+  new Media(206, 'Break Stuff', 'music', 2000, 'Limp Bizkit', 'https://i.ytimg.com/vi/ZpUYjpKg9KY/maxresdefault.jpg', 'https://www.youtube.com/watch?v=ZpUYjpKg9KY', ['Nu Metal', 'Rock'], [6]),
+  new Media(207, '1979', 'music', 1995, 'The Smashing Pumpkins', 'https://i.ytimg.com/vi/4aeETEoNfOg/maxresdefault.jpg', 'https://www.youtube.com/watch?v=4aeETEoNfOg', ['Alternative Rock'], [7]),
+  new Media(208, 'Eye of the Tiger', 'music', 1982, 'Survivor', 'https://th.bing.com/th/id/OIP.0_5XR8jH6q87PetNZHk8cAHaEK?w=318&h=180&c=7&r=0&o=5&pid=1.7', 'https://www.youtube.com/watch?v=btPJPFnesV4', ['Rock'], [8, 3]),
+  new Media(209, 'Dynamite', 'music', 2020, 'BTS', 'https://th.bing.com/th/id/R.36610aebf8027c1bfc646d51d6ebd766?rik=NzuS%2bejEB%2ffjHA&pid=ImgRaw&r=0', 'https://www.youtube.com/watch?v=gdZLi9oWNZg', ['K-Pop', 'Pop'], [1, 3]),
+  new Media(210, 'Save Your Tears', 'music', 2020, 'The Weeknd', 'https://th.bing.com/th/id/R.a28d9ae87ba233c51d71c4ae7f2251c6?rik=zOwGHdYY1ipicw&pid=ImgRaw&r=0', 'https://www.youtube.com/watch?v=XXYlFuWEuKI', ['Pop', 'R&B'], [2, 5]),
+  new Media(211, 'เมะ', 'music', 2020, 'The Toy', 'https://www.thebangkokinsight.com/wp-content/uploads/2019/04/the-toy-01.jpg ', 'https://www.youtube.com/watch?v=NMKaS7yyr2I', ['Pop'], [1]),
+  new Media(212, 'Bad Girl Like You', 'music', 2020, 'Tobii', 'https://i.ytimg.com/vi/uejhZX9vu3k/maxresdefault.jpg', 'https://www.youtube.com/watch?v=uejhZX9vu3k', ['Pop', 'R&B'], [1]),
+  new Media(213, 'HURRY UP!', 'music', 2020, 'JayQ', 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/80/d5/fb/80d5fbb0-2ca0-8bfe-c3af-7e7fbef80efb/859702102075_cover.jpg/1200x630cw.png', 'hhttps://www.youtube.com/watch?v=iOwzSG0pvm4', ['Hip-Hop', 'Pop'], [1]),
+  new Media(214, 'หน้าหนาวที่แล้ว', 'music', 2020, 'THE TOYS', 'https://i.ytimg.com/vi/E6TWhzCwvYo/maxresdefault.jpg', 'https://www.youtube.com/watch?v=E6TWhzCwvYo', ['Alternative Rock'], [2]),
+  new Media(215, 'วันนี้ปีที่แล้ว', 'music', 2020, 'MEYOU', 'https://th.bing.com/th/id/OIP.HGjcXmA2AGtjT-ezr2YSFAAAAA?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=Da7KUqKadcY', ['Pop', 'Ballad'], [2]),
+  new Media(216, 'กลิ่นดอกไม้', 'music', 2020, 'Newery', 'https://i.ytimg.com/vi/BgG59hq32LY/maxresdefault.jpg', 'https://www.youtube.com/watch?v=71KuVORecY8', ['Indie Pop'], [2]),
+  new Media(217, 'Titanium', 'music', 2011, 'David Guetta ft. Sia', 'https://geo-media.beatsource.com/image_size/1400x1400/f/2/4/f24277ae-b430-4061-83a6-57e245b403dc.jpg ', 'https://www.youtube.com/watch?v=JRfuAukYTKg', ['Pop', 'EDM'], [3]),
+  new Media(218, 'seven', 'music', 2023, 'Jung Kook', 'https://th.bing.com/th/id/OIP.K_M-3qB_XCDpqlqZEb1h3QHaJ3?cb=iwc2&rs=1&pid=ImgDetMain ', 'https://www.youtube.com/watch?v=QU9c0053UAU', ['Pop', 'R&B'], [4]),
+  new Media(219, 'matsuri', 'music', 2022, 'Fujii Kaze', 'https://f4.bcbits.com/img/a2833052651_10.jpg', 'https://www.youtube.com/watch?v=NwOvu-j_WjY', ['R&B', 'Soul'], [4]),
+  new Media(220, 'OMG', 'music', 2023, 'NewJeans', 'https://th.bing.com/th/id/OIP.jSzD0CcG0-8NReOrjPYoIQHaHa?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=sVTy_wmn5SU', ['K-pop', 'Pop'], [4]),
+  new Media(221, 'blue', 'music', 2020, 'yung kai', 'https://www.bing.com/th/id/OIP.inL-5Cdn5AaiU_Oln6grOwHaHa?w=170&h=185&c=8&rs=1&qlt=90&o=6&pid=3.1&rm=2', 'https://www.youtube.com/watch?v=NwOvu-j_WjY', ['R&B'], [5]),
+  new Media(222, 'garden', 'music', 2021, 'Fujii Kaze', 'https://th.bing.com/th/id/OIP.2mUIBud0bKM813zYHEk0iwHaHa?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=vkPfKnUaq5k', ['R&B', 'Soul'], [5]),
+  new Media(223, 'จดหมาย', 'music', 2020, 'THE TOYS', 'https://i.pinimg.com/736x/a9/3d/9a/a93d9a1e404e0345e8fdda24314fda64.jpg', 'https://www.youtube.com/watch?v=c9D8HuiUHR8', ['Alternative Rock'], [5]),
+  new Media(230, 'Golden Hour', 'music', 2022, 'JVKE', 'https://th.bing.com/th/id/OIP.aJyAoZMeQBQiU8kWIeKLYQHaEK?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=PEM0Vs8jf1w', ['Pop', 'Indie Pop'], [4]),
+  new Media(224, 'หนังสือเล่มเก่า', 'music', 2020, 'คิงส์ ชนาวิทย์', 'https://th.bing.com/th/id/OIP.x3qCC12P6IDf920GX9tmBgHaHa?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=CpMnEJwk0TU', ['Ballad'], [7]),
+  new Media(225, 'Michi Teyu Ku', 'music', 2021, 'Fujii Kaze', 'https://i.ytimg.com/vi/ptiK8U4WlSc/hqdefault.jpg', 'https://www.youtube.com/watch?v=ptiK8U4WlSc&t=1s', ['R&B', 'Soul'], [7]),
+  new Media(226, '7 Years', 'music', 2015, 'Lukas Graham', 'https://i.ytimg.com/vi/Q0bnAmfGQC8/maxresdefault.jpg', 'https://www.youtube.com/live/Q0bnAmfGQC8', ['Pop', 'Ballad'], [7]),
+  new Media(227, 'Fireflies', 'music', 2009, 'Owl City', 'https://th.bing.com/th/id/OIP.FvCkWRgSOy3UOoUcJUCe1wHaHa?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=psuRGfAaju4', ['Pop', 'Electronic'], [8]),
+  new Media(228, 'Something Just Like This', 'music', 2017, 'The Chainsmokers & Coldplay', 'https://th.bing.com/th/id/OIP.vtoPeLflpF-QSftPFX-nqQHaHa?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=FM7MFYoylVs', ['Pop', 'Electro'], [8]),
+  new Media(229, 'Counting Stars', 'music', 2012, 'OneRepublic', 'https://i.ytimg.com/vi/hT_nvWreIhg/maxresdefault.jpg ', 'https://www.youtube.com/watch?v=hT_nvWreIhg', ['Pop', 'Rock'], [8]),
+  new Media(231, 'Radioactive', 'music', 2012, 'Imagine Dragons', 'https://th.bing.com/th/id/OIP.Vq91qeY2V5gxZWr70p-WNgHaEK?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=w3viBe2Q0P8', ['Rock', 'Alternative'], [8]),
+  new Media(232, 'Numb', 'music', 2003, 'Linkin Park', 'https://th.bing.com/th/id/R.78ba60190189d4dc6598ff26b1779137?rik=1GIyykpjr73qEg&pid=ImgRaw&r=0', 'https://www.youtube.com/watch?v=kXYiU_JCYtU ', ['Rock', 'Alternative'], [8]),
+  new Media(233, 'Bye Bye Bye', 'music', 2000, 'NSYNC', 'https://th.bing.com/th/id/OIP.IYAqMGNdwRN2LLAmb7N7vAHaHa?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=2ydCvkxuNm4', ['Pop', 'Dance'], [8]),
+  new Media(234, 'One For The Money', 'music', 2010, 'Escape The Fate', 'https://th.bing.com/th/id/OIP.Z49o3myqpdoNOGZjK8HmtQHaHa?cb=iwc2&rs=1&pid=ImgDetMain', 'https://www.youtube.com/watch?v=SNArTXVWZns', ['Rock', 'Post-Hardcore'], [8])
+];
+
+// DOM Elements
+const emotionsContainer = document.getElementById('emotions-container');
+const recommendationsSection = document.getElementById('recommendations-section');
+const recommendationsTitle = document.getElementById('recommendations-title');
+const recommendationsContainer = document.getElementById('recommendations-container');
+const historySection = document.getElementById('history-section');
+const historyContainer = document.getElementById('history-container');
+const loadingOverlay = document.getElementById('loading-overlay');
+const movieBtn = document.getElementById('movie-btn');
+const musicBtn = document.getElementById('music-btn');
+
+// Initialize app
+function initApp() {
+  appState.emotions = initEmotions;
+  renderEmotions();
+  loadHistory();
+  loadMediaData();
+}
+
+// Load media data with simulated delay
+function loadMediaData() {
+  setLoading(true);
+  setTimeout(() => {
+    appState.mediaList = initMediaList;
+    appState.recommender = new Recommender(appState.mediaList);
+    setLoading(false);
+  }, 1000);
+}
+
+// Load history from localStorage
+function loadHistory() {
+  const savedHistory = localStorage.getItem('userHistory');
+  if (savedHistory) {
+    try {
+      const parsedHistory = JSON.parse(savedHistory);
+      appState.history = parsedHistory.map(item => ({
+        media: item.media,
+        timestamp: new Date(item.timestamp)
+      }));
+      renderHistory();
+    } catch (e) {
+      console.error('Error loading history from localStorage', e);
+    }
+  }
+}
+
+// Add media to history
+function addToHistory(media) {
+  const newHistoryItem = {
+    media: media,
+    timestamp: new Date()
+  };
+  appState.history = [newHistoryItem, ...appState.history];
+  if (appState.history.length > 20) {
+    appState.history.splice(20);
+  }
+  localStorage.setItem('userHistory', JSON.stringify(appState.history));
+  renderHistory();
+}
+
+// Set loading state
+function setLoading(isLoading) {
+  appState.isLoading = isLoading;
+  loadingOverlay.classList.toggle('hidden', !isLoading);
+}
+
+// Media type change handler
+function handleMediaTypeChange(mediaType) {
+  appState.selectedMediaType = mediaType;
+  movieBtn.classList.toggle('bg-gradient-to-r', mediaType === 'movie');
+  movieBtn.classList.toggle('from-pink-400', mediaType === 'movie');
+  movieBtn.classList.toggle('to-purple-500', mediaType === 'movie');
+  movieBtn.classList.toggle('text-white', mediaType === 'movie');
+  movieBtn.classList.toggle('text-gray-700', mediaType !== 'movie');
+  movieBtn.classList.toggle('hover:bg-pink-50', mediaType !== 'movie');
+
+  musicBtn.classList.toggle('bg-gradient-to-r', mediaType === 'music');
+  musicBtn.classList.toggle('from-pink-400', mediaType === 'music');
+  musicBtn.classList.toggle('to-purple-500', mediaType === 'music');
+  musicBtn.classList.toggle('text-white', mediaType === 'music');
+  musicBtn.classList.toggle('text-gray-700', mediaType !== 'music');
+  musicBtn.classList.toggle('hover:bg-pink-50', mediaType !== 'music');
+
+  if (appState.selectedEmotion) updateRecommendations();
+}
+
+// Emotion selection handler
+function handleEmotionSelect(emotion) {
+  appState.selectedEmotion = emotion;
+  const emotionElements = document.querySelectorAll('.emotion-card');
+  emotionElements.forEach(el => {
+    el.style.border = '3px solid white';
+    el.style.boxShadow = '';
+    if (parseInt(el.dataset.emotionId) === emotion.id) {
+      el.style.border = '3px solid #8b5cf6';
+      el.style.boxShadow = '0 0 15px rgba(139, 92, 246, 0.5)';
+    }
+  });
+  updateRecommendations();
+}
+
+// Update recommendations based on emotion and media type
+function updateRecommendations() {
+  if (appState.selectedEmotion && appState.recommender) {
+    appState.recommendations = appState.recommender.getRecommendations(
+      appState.selectedEmotion.id, appState.selectedMediaType
+    );
+    renderRecommendations();
+  }
+}
+
+// Media click handler
+function handleMediaSelect(media) {
+  addToHistory(media);
+  window.open(media.previewUrl, '_blank');
+}
+
+// Render emotions
+function renderEmotions() {
+  emotionsContainer.innerHTML = '';
+  appState.emotions.forEach(emotion => {
+    const contrastColor = emotion.getContrastColor();
+    const card = document.createElement('div');
+    card.className = 'p-4 rounded-xl shadow-md cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg text-center transform hover:-rotate-1 relative overflow-hidden group emotion-card';
+    card.style.backgroundColor = emotion.color;
+    card.style.color = contrastColor;
+    card.style.border = '3px solid white';
+    card.dataset.emotionId = emotion.id;
+    card.innerHTML = `
+      <div class="absolute -right-6 -top-6 bg-white rounded-full w-16 h-16 opacity-10 group-hover:opacity-20 transition-opacity"></div>
+      <div class="absolute -left-6 -bottom-6 bg-white rounded-full w-12 h-12 opacity-10 group-hover:opacity-20 transition-opacity"></div>
+      <div class="text-5xl mb-2 transform transition-transform hover:scale-110 hover:rotate-3">${emotion.icon}</div>
+      <h3 class="font-bold text-lg">${emotion.thai_name}</h3>`;
+    card.addEventListener('click', () => handleEmotionSelect(emotion));
+    emotionsContainer.appendChild(card);
+  });
+}
+
+// Render recommendations
+function renderRecommendations() {
+  if (!appState.recommendations.length) return recommendationsSection.classList.add('hidden');
+  recommendationsTitle.textContent = `${appState.selectedMediaType === 'movie' ? 'หนัง' : 'เพลง'}สำหรับอารมณ์ ${appState.selectedEmotion.thai_name} ${appState.selectedEmotion.icon}`;
+  recommendationsContainer.innerHTML = '';
+  appState.recommendations.forEach(media => {
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-xl overflow-hidden shadow-md transition-all hover:shadow-lg hover:scale-102 cursor-pointer';
+    card.innerHTML = `
+      <div class="h-48 overflow-hidden">
+        <img src="${media.imageUrl || '/api/placeholder/320/240'}" alt="${media.title}" class="w-full h-full object-cover"/>
+      </div>
+      <div class="p-4">
+        <h3 class="font-bold text-purple-800 text-lg mb-1">${media.title}</h3>
+        <p class="text-gray-600 text-sm">${media.type === 'movie' ? `${media.year} • ${media.artist}` : media.artist}</p>
+        <div class="flex flex-wrap mt-2">
+          ${media.genres.map(genre => `<span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full mr-1 mb-1">${genre}</span>`).join('')}
+        </div>
+      </div>`;
+    card.addEventListener('click', () => handleMediaSelect(media));
+    recommendationsContainer.appendChild(card);
+  });
+  recommendationsSection.classList.remove('hidden');
+}
+
+// Render history
+function renderHistory() {
+  historyContainer.innerHTML = '';
+  if (!appState.history.length) return historySection.classList.add('hidden');
+  appState.history.forEach((item, index) => {
+    const media = item.media;
+    const date = new Date(item.timestamp);
+    const formattedDate = date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+    const card = document.createElement('div');
+    card.className = 'min-w-[160px] bg-white rounded-xl overflow-hidden shadow-md transition-all hover:shadow-lg cursor-pointer flex-shrink-0';
+    card.innerHTML = `
+      <div class="h-32 overflow-hidden">
+        <img src="${media.imageUrl || '/api/placeholder/160/120'}" alt="${media.title}" class="w-full h-full object-cover"/>
+      </div>
+      <div class="p-2 text-center">
+        <p class="text-xs text-gray-500">${formattedDate}</p>
+        <h4 class="font-medium text-sm truncate">${media.title}</h4>
+        <p class="text-xs text-purple-600">${media.type === 'movie' ? 'ภาพยนตร์' : 'เพลง'}</p>
+      </div>`;
+    card.addEventListener('click', () => handleMediaSelect(media));
+    historyContainer.appendChild(card);
+  });
+  historySection.classList.remove('hidden');
+}
+
+window.addEventListener('DOMContentLoaded', initApp);
+</script>
+
+</body>
+</html>
